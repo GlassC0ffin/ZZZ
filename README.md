@@ -68,8 +68,10 @@ The instrument is MediaPipe Face Landmarker, pinned to version 1.1.1, the same o
 
 Team 
 -Jaxson William Character 
--Diego Ortega
+-Diego Ortega -My PR 
 -Brennan Soloman Howard-Ruelas , my pull request 
+
+
 
 Sensor: ultrasonic distnace 
 Live Website: https://glassc0ffin.github.io/ZZZ/
