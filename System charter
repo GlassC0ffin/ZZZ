@@ -1,0 +1,42 @@
+
+
+Name: The Strand 
+By: Jaxson Character, Brennan Howard-Ruelas, Diego Ortega Gonzales
+
+
+
+
+
+
+It sees: your prototype's real numbers for nobody, a little and a lot, from its README or three fresh Serial Monitor readings. A PIR reads only 0 or 1023 in the Wire Any Sensor sketch, so its numbers are seconds of motion.
+Nobody: if nobody is in the range it says no object 
+Close: it says close (0,15)cm 
+Far: (15,infinity)cm 
+It calls you: one name per member of your group, plus one for nobody. Each name gets a number, which side of it, and a hold in seconds.
+A PIR names by time: passing (motion under 5 s), lingering (motion for 5 s), gone (nothing for 10 s).
+A photoresistor is named by light: lit, shadowed, covered.
+Nobody: 5 seconds  
+Close: super close! 
+Far: (15,infinity) cm 
+It does: one action per name, no two the same, run by the Nano: an LED, the buzzer, a servo, the OLED.
+Nobody: if nobody is in the range it says no object 
+Close: it says close (0,15)cm 
+Far: (15,infinity)cm 
+For them and To them: one line each: what the piece does for the person, and what it does to them.
+For them: it gives visitors an experience that responds to their physical presence 
+To them: makes them feel like their presence makes a difference 
+It refuses: one thing it could do with what it knows, and will not.
+It doesn't record their moments or remember anything, it just responds to their distance in the current moment. 
+Reminds me of: one entry from the References page.
+	It reminds me of the radar sensor in my car where AEB works because that measures distance constantly. 
+
+
+
+
+Two thumbnails: where it sits and what a visitor meets first; then how it shows the name. A printed word beside each light, a servo pointing at a lettered dial, the OLED, bench.html, a sound per name.
+Not finished. Not perfect. Alive. Pencil, each thumbnail the size of a sticky note
+
+
+
+
+
