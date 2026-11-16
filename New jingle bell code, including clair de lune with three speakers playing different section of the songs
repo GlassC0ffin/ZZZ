@@ -1,0 +1,490 @@
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+// PINS (Arduino Nano)
+const int TRIG_PIN = 9;
+const int ECHO_PIN = 10;
+const int SPEAKER1_PIN = 8;  // Voice 1: Top Melody
+const int SPEAKER2_PIN = 7;  // Voice 2: Middle Harmony
+const int SPEAKER3_PIN = 6;  // Voice 3: Bass / Lower Harmony
+const int LED_PIN = A1;
+
+// OLED
+const int SCREEN_WIDTH = 128;
+const int SCREEN_HEIGHT = 64;
+const int OLED_ADDRESS = 0x3C;
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+// SETTINGS
+const int MAX_DISTANCE_CM = 200;
+const int WARNING_CM = 20;
+const int TRIGGER_MIN_CM = 50; // 50 cm <= x
+
+bool wasInZone = false;
+
+// 3-VOICE POLYPHONIC SYNTH VARIABLES (Timer1 @ 15,625 Hz)
+volatile uint16_t phase1 = 0, phase2 = 0, phase3 = 0;
+volatile uint16_t step1 = 0, step2 = 0, step3 = 0;
+volatile uint8_t *out1, *out2, *out3;
+uint8_t mask1, mask2, mask3;
+
+// EXACT PITCH FREQUENCIES (Hz) FOR Db MAJOR & C MAJOR
+#define REST     0
+#define NOTE_F2  87
+#define NOTE_GB2 92
+#define NOTE_BB2 117
+#define NOTE_C3  131
+#define NOTE_DB3 139
+#define NOTE_EB3 156
+#define NOTE_F3  175
+#define NOTE_GB3 185
+#define NOTE_G3  196
+#define NOTE_AB3 208
+#define NOTE_A3  220
+#define NOTE_BB3 233
+#define NOTE_C4  262
+#define NOTE_DB4 277
+#define NOTE_D4  294
+#define NOTE_EB4 311
+#define NOTE_E4  330
+#define NOTE_F4  349
+#define NOTE_GB4 370
+#define NOTE_G4  392
+#define NOTE_AB4 415
+#define NOTE_A4  440
+#define NOTE_BB4 466
+#define NOTE_B4  494
+#define NOTE_C5  523
+#define NOTE_DB5 554
+#define NOTE_D5  587
+#define NOTE_EB5 622
+#define NOTE_E5  659
+#define NOTE_F5  698
+#define NOTE_GB5 740
+#define NOTE_G5  784
+#define NOTE_AB5 831
+#define NOTE_BB5 932
+#define NOTE_C6  1047
+#define NOTE_DB6 1109
+
+// =====================================================================
+// CLAIR DE LUNE (Measures 1-16, 3-Voice Piano Arrangement in Flash)
+// =====================================================================
+const uint16_t clairV1[] PROGMEM = {
+  // M.1 (3)
+  REST, NOTE_F5, NOTE_DB5,
+  // M.2 (4)
+  NOTE_EB5, NOTE_DB5, NOTE_EB5, NOTE_DB5,
+  // M.3 (5)
+  NOTE_C5, NOTE_DB5, NOTE_C5, NOTE_F5, NOTE_C5,
+  // M.4 (4)
+  NOTE_BB4, NOTE_C5, NOTE_BB4, NOTE_AB4,
+  // M.5 (8)
+  NOTE_BB4, NOTE_AB4, NOTE_BB4, NOTE_DB5, NOTE_BB4, NOTE_AB4, NOTE_GB4, NOTE_AB4,
+  // M.6 (6)
+  NOTE_GB4, NOTE_AB4, NOTE_GB4, NOTE_AB4, NOTE_GB4, NOTE_F4,
+  // M.7 (8)
+  NOTE_GB4, NOTE_F4, NOTE_GB4, NOTE_BB4, NOTE_GB4, NOTE_F4, NOTE_EB4, NOTE_F4,
+  // M.8 (5)
+  NOTE_EB4, NOTE_F4, NOTE_EB4, NOTE_F4, NOTE_DB4,
+  // M.9 (3)
+  NOTE_AB4, NOTE_AB5, NOTE_F5,
+  // M.10 (3)
+  NOTE_EB5, NOTE_F5, NOTE_EB5,
+  // M.11 (4)
+  NOTE_DB5, NOTE_GB5, NOTE_F5, NOTE_EB5,
+  // M.12 (5)
+  NOTE_DB5, NOTE_EB5, NOTE_DB5, NOTE_BB4, NOTE_DB5,
+  // M.13 (5)
+  NOTE_C5, NOTE_EB5, NOTE_DB5, NOTE_AB5, NOTE_EB5,
+  // M.14 (5)
+  NOTE_DB5, NOTE_EB5, NOTE_DB5, NOTE_EB5, NOTE_BB4,
+  // M.15 (7)
+  REST, NOTE_DB6, NOTE_C6, NOTE_DB6, NOTE_BB5, NOTE_C6, NOTE_AB5,
+  // M.16 (6)
+  NOTE_BB5, NOTE_GB5, NOTE_AB5, NOTE_F5, NOTE_GB5, NOTE_EB5
+};
+
+const uint16_t clairV2[] PROGMEM = {
+  // M.1
+  REST, NOTE_DB5, NOTE_BB4,
+  // M.2
+  NOTE_C5, NOTE_BB4, NOTE_C5, NOTE_BB4,
+  // M.3
+  NOTE_AB4, NOTE_BB4, NOTE_AB4, NOTE_AB4, NOTE_AB4,
+  // M.4
+  NOTE_GB4, NOTE_AB4, NOTE_GB4, NOTE_F4,
+  // M.5
+  NOTE_F4, NOTE_F4, NOTE_F4, NOTE_F4, NOTE_F4, NOTE_F4, NOTE_F4, NOTE_F4,
+  // M.6
+  NOTE_EB4, NOTE_EB4, NOTE_EB4, NOTE_EB4, NOTE_DB4, NOTE_DB4,
+  // M.7
+  NOTE_DB4, NOTE_DB4, NOTE_DB4, NOTE_DB4, NOTE_DB4, NOTE_DB4, NOTE_DB4, NOTE_DB4,
+  // M.8
+  NOTE_BB3, NOTE_BB3, NOTE_BB3, NOTE_AB3, NOTE_AB3,
+  // M.9
+  NOTE_F4, NOTE_F4, NOTE_AB4,
+  // M.10
+  NOTE_GB4, NOTE_GB4, NOTE_GB4,
+  // M.11
+  NOTE_GB4, NOTE_BB4, NOTE_BB4, NOTE_GB4,
+  // M.12
+  NOTE_GB4, NOTE_GB4, NOTE_GB4, NOTE_EB4, NOTE_GB4,
+  // M.13
+  NOTE_AB4, NOTE_AB4, NOTE_AB4, NOTE_C5, NOTE_AB4,
+  // M.14
+  NOTE_AB4, NOTE_AB4, NOTE_AB4, NOTE_AB4, NOTE_F4,
+  // M.15
+  REST, NOTE_AB5, NOTE_AB5, NOTE_BB5, NOTE_GB5, NOTE_AB5, NOTE_F5,
+  // M.16
+  NOTE_GB5, NOTE_EB5, NOTE_F5, NOTE_DB5, NOTE_EB5, NOTE_C5
+};
+
+const uint16_t clairV3[] PROGMEM = {
+  // M.1
+  REST, NOTE_F4, NOTE_F4,
+  // M.2
+  NOTE_E4, NOTE_E4, NOTE_E4, NOTE_E4,
+  // M.3
+  NOTE_EB4, NOTE_EB4, NOTE_EB4, NOTE_EB4, NOTE_EB4,
+  // M.4
+  NOTE_DB4, NOTE_DB4, NOTE_DB4, NOTE_DB4,
+  // M.5
+  NOTE_C4, NOTE_C4, NOTE_C4, NOTE_C4, NOTE_C4, NOTE_C4, NOTE_BB3, NOTE_BB3,
+  // M.6
+  NOTE_BB3, NOTE_BB3, NOTE_BB3, NOTE_BB3, NOTE_A3, NOTE_A3,
+  // M.7
+  NOTE_AB3, NOTE_AB3, NOTE_AB3, NOTE_AB3, NOTE_AB3, NOTE_AB3, NOTE_GB3, NOTE_GB3,
+  // M.8
+  NOTE_GB3, NOTE_GB3, NOTE_GB3, NOTE_F3, NOTE_F3,
+  // M.9
+  NOTE_BB2, NOTE_F3, NOTE_DB4,
+  // M.10
+  NOTE_GB2, NOTE_DB3, NOTE_BB3,
+  // M.11
+  NOTE_GB2, NOTE_EB3, NOTE_BB3, NOTE_GB3,
+  // M.12
+  NOTE_GB2, NOTE_EB3, NOTE_BB3, NOTE_GB3, NOTE_BB3,
+  // M.13
+  NOTE_F2, NOTE_C3, NOTE_AB3, NOTE_C4, NOTE_AB3,
+  // M.14
+  NOTE_BB2, NOTE_F3, NOTE_DB4, NOTE_F4, NOTE_DB4,
+  // M.15
+  NOTE_GB2, NOTE_F5, NOTE_EB5, NOTE_F5, NOTE_DB5, NOTE_EB5, NOTE_DB5,
+  // M.16
+  NOTE_DB5, NOTE_BB4, NOTE_C5, NOTE_BB4, NOTE_BB4, NOTE_AB4
+};
+
+const uint16_t clairDur[] PROGMEM = {
+  // M.1
+  400, 2000, 1600,
+  // M.2
+  400, 400, 400, 2400,
+  // M.3
+  400, 400, 600, 1200, 1000,
+  // M.4
+  400, 400, 400, 2400,
+  // M.5
+  400, 400, 400, 400, 400, 400, 400, 800,
+  // M.6
+  400, 400, 400, 800, 800, 800,
+  // M.7
+  400, 400, 400, 400, 400, 400, 400, 800,
+  // M.8
+  400, 400, 800, 400, 1200,
+  // M.9
+  1200, 1200, 1600,
+  // M.10
+  400, 400, 2800,
+  // M.11
+  400, 400, 1200, 1600,
+  // M.12
+  400, 400, 1200, 800, 800,
+  // M.13
+  400, 400, 600, 1200, 1000,
+  // M.14
+  400, 400, 600, 1200, 600,
+  // M.15
+  400, 1200, 400, 400, 400, 400, 400,
+  // M.16
+  400, 400, 400, 600, 600, 1200
+};
+
+// =====================================================================
+// JINGLE BELLS (3-Voice Harmony across all 3 Speakers)
+// =====================================================================
+const uint16_t jingleV1[] PROGMEM = {
+  NOTE_E5, NOTE_E5, NOTE_E5,
+  NOTE_E5, NOTE_E5, NOTE_E5,
+  NOTE_E5, NOTE_G5, NOTE_C5, NOTE_D5, NOTE_E5,
+  NOTE_F5, NOTE_F5, NOTE_F5, NOTE_F5,
+  NOTE_F5, NOTE_E5, NOTE_E5, NOTE_E5,
+  NOTE_E5, NOTE_D5, NOTE_D5, NOTE_E5, NOTE_D5, NOTE_G5
+};
+
+const uint16_t jingleV2[] PROGMEM = {
+  NOTE_C5, NOTE_C5, NOTE_C5,
+  NOTE_C5, NOTE_C5, NOTE_C5,
+  NOTE_C5, NOTE_E5, NOTE_G4, NOTE_B4, NOTE_C5,
+  NOTE_D5, NOTE_D5, NOTE_D5, NOTE_D5,
+  NOTE_D5, NOTE_C5, NOTE_C5, NOTE_C5,
+  NOTE_C5, NOTE_B4, NOTE_B4, NOTE_C5, NOTE_B4, NOTE_D5
+};
+
+const uint16_t jingleV3[] PROGMEM = {
+  NOTE_C4, NOTE_G3, NOTE_C4,
+  NOTE_C4, NOTE_G3, NOTE_C4,
+  NOTE_C4, NOTE_E4, NOTE_E4, NOTE_G3, NOTE_C4,
+  NOTE_F3, NOTE_A3, NOTE_F3, NOTE_A3,
+  NOTE_C4, NOTE_G3, NOTE_C4, NOTE_G3,
+  NOTE_G3, NOTE_G3, NOTE_G3, NOTE_G3, NOTE_G3, NOTE_G3
+};
+
+const uint16_t jingleDur[] PROGMEM = {
+  220, 220, 440,
+  220, 220, 440,
+  220, 220, 220, 220, 660,
+  220, 220, 220, 220,
+  220, 220, 220, 220,
+  220, 220, 220, 220, 220, 660
+};
+
+// =====================================================================
+// POLYPHONIC SYNTH ENGINE (Timer1 Interrupt)
+// =====================================================================
+ISR(TIMER1_COMPA_vect) {
+  if (step1) {
+    phase1 += step1;
+    if (phase1 & 0x8000) *out1 |= mask1;
+    else *out1 &= ~mask1;
+  } else {
+    *out1 &= ~mask1;
+  }
+
+  if (step2) {
+    phase2 += step2;
+    if (phase2 & 0x8000) *out2 |= mask2;
+    else *out2 &= ~mask2;
+  } else {
+    *out2 &= ~mask2;
+  }
+
+  if (step3) {
+    phase3 += step3;
+    if (phase3 & 0x8000) *out3 |= mask3;
+    else *out3 &= ~mask3;
+  } else {
+    *out3 &= ~mask3;
+  }
+}
+
+uint16_t freqToStep(uint16_t freq) {
+  if (freq == 0) return 0;
+  return (uint16_t)(((uint32_t)freq * 65536UL) / 15625UL);
+}
+
+void setChord(uint16_t f1, uint16_t f2, uint16_t f3) {
+  uint16_t s1 = freqToStep(f1);
+  uint16_t s2 = freqToStep(f2);
+  uint16_t s3 = freqToStep(f3);
+  noInterrupts();
+  step1 = s1;
+  step2 = s2;
+  step3 = s3;
+  if (s1 == 0) phase1 = 0;
+  if (s2 == 0) phase2 = 0;
+  if (s3 == 0) phase3 = 0;
+  interrupts();
+}
+
+void startSynth() {
+  noInterrupts();
+  TCCR1A = 0;
+  TCCR1B = 0;
+  TCNT1  = 0;
+  OCR1A  = 127; // 16 MHz / (8 * 128) = 15,625 Hz sample rate
+  TCCR1B |= (1 << WGM12) | (1 << CS11);
+  TIMSK1 |= (1 << OCIE1A);
+  interrupts();
+}
+
+void stopSynth() {
+  noInterrupts();
+  TIMSK1 &= ~(1 << OCIE1A);
+  TCCR1B = 0;
+  step1 = step2 = step3 = 0;
+  phase1 = phase2 = phase3 = 0;
+  *out1 &= ~mask1;
+  *out2 &= ~mask2;
+  *out3 &= ~mask3;
+  interrupts();
+}
+
+void playPolyphonicSong(
+  const uint16_t v1[],
+  const uint16_t v2[],
+  const uint16_t v3[],
+  const uint16_t durations[],
+  int count
+) {
+  startSynth();
+
+  for (int i = 0; i < count; i++) {
+    uint16_t f1  = pgm_read_word(&v1[i]);
+    uint16_t f2  = pgm_read_word(&v2[i]);
+    uint16_t f3  = pgm_read_word(&v3[i]);
+    uint16_t dur = pgm_read_word(&durations[i]);
+
+    if (f1 == REST && f2 == REST && f3 == REST) {
+      setChord(0, 0, 0);
+      digitalWrite(LED_PIN, LOW);
+      delay(dur);
+    } else {
+      digitalWrite(LED_PIN, HIGH);
+      setChord(f1, f2, f3);
+      delay(dur - 25);
+
+      setChord(0, 0, 0);
+      digitalWrite(LED_PIN, LOW);
+      delay(25); // Crisp piano key release between chords
+    }
+  }
+
+  stopSynth();
+}
+
+// =====================================================================
+// DISTANCE SENSOR
+// =====================================================================
+float readDistanceCm() {
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+
+  long duration = pulseIn(ECHO_PIN, HIGH, 30000);
+
+  if (duration == 0) {
+    return -1;
+  }
+
+  return duration * 0.0343 / 2;
+}
+
+// =====================================================================
+// SETUP & LOOP
+// =====================================================================
+void setup() {
+  Serial.begin(9600);
+
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(SPEAKER1_PIN, OUTPUT);
+  pinMode(SPEAKER2_PIN, OUTPUT);
+  pinMode(SPEAKER3_PIN, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
+
+  digitalWrite(LED_PIN, LOW);
+
+  // Cache fast port registers for the 3 speakers
+  out1  = portOutputRegister(digitalPinToPort(SPEAKER1_PIN));
+  mask1 = digitalPinToBitMask(SPEAKER1_PIN);
+  out2  = portOutputRegister(digitalPinToPort(SPEAKER2_PIN));
+  mask2 = digitalPinToBitMask(SPEAKER2_PIN);
+  out3  = portOutputRegister(digitalPinToPort(SPEAKER3_PIN));
+  mask3 = digitalPinToBitMask(SPEAKER3_PIN);
+
+  if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS)) {
+    Serial.println(F("OLED not found!"));
+    while (true);
+  }
+
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.println(F("3-Speaker Piano"));
+  display.println(F("Starting..."));
+  display.display();
+
+  delay(1000);
+}
+
+void loop() {
+  float distance = readDistanceCm();
+
+  display.clearDisplay();
+
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.println(F("Distance:"));
+
+  display.setTextSize(3);
+  display.setCursor(0, 18);
+
+  if (distance < 0 || distance > MAX_DISTANCE_CM) {
+    display.setTextSize(2);
+    display.print(F("No object"));
+    Serial.println(F("No object detected"));
+  } else {
+    display.print(distance, 1);
+    display.setTextSize(1);
+    display.print(F(" cm"));
+
+    Serial.print(F("Distance: "));
+    Serial.print(distance);
+    Serial.println(F(" cm"));
+
+    int barLength = map(
+      (int)distance,
+      0,
+      MAX_DISTANCE_CM,
+      SCREEN_WIDTH,
+      0
+    );
+
+    barLength = constrain(barLength, 0, SCREEN_WIDTH);
+
+    display.fillRect(
+      0,
+      SCREEN_HEIGHT - 8,
+      barLength,
+      6,
+      SSD1306_WHITE
+    );
+
+    if (distance < WARNING_CM) {
+      display.setTextSize(1);
+      display.setCursor(80, 0);
+      display.print(F("CLOSE!"));
+    }
+  }
+
+  display.display();
+
+  // TRIGGER WHEN 50 cm <= x <= 200 cm
+  bool inZone = (distance >= TRIGGER_MIN_CM && distance <= MAX_DISTANCE_CM);
+
+  if (inZone && !wasInZone) {
+    Serial.println(F("50cm+ DETECTED - Clair de Lune (3-Voice Piano)"));
+    int clairCount = sizeof(clairDur) / sizeof(clairDur[0]);
+    playPolyphonicSong(clairV1, clairV2, clairV3, clairDur, clairCount);
+
+    delay(500);
+
+    // Note: If you meant Jingle Bells when x < 50 cm instead of x >= 50 cm,
+    // move this block outside into: if (distance > 0 && distance < TRIGGER_MIN_CM)
+    Serial.println(F("Playing Jingle Bells (3-Voice Harmony)"));
+    int jingleCount = sizeof(jingleDur) / sizeof(jingleDur[0]);
+    playPolyphonicSong(jingleV1, jingleV2, jingleV3, jingleDur, jingleCount);
+  }
+
+  wasInZone = inZone;
+  digitalWrite(LED_PIN, LOW);
+
+  delay(100);
+}
