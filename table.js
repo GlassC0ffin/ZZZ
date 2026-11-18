@@ -11,12 +11,12 @@
 //          Keep "nobody" last, so it catches everything the other rows miss.
 
 window.TABLE = {
-  signals: ['present', 'open'],
+  signals: ['cm'],
 
   states: [
-    // These three rows are an example. Replace them with your own words.
-    { name: 'open',   when: s => s.present > 0.5 && s.open > 0.4, hold: 0.5 },
-    { name: 'here',   when: s => s.present > 0.5,                 hold: 1 },
-    { name: 'nobody', when: s => s.present < 0.2,                 hold: 2 },
+    { name: 'Jaxson',  when: s => s.cm <= 30 / 400,  hold: 1.0 },
+    { name: 'Diego',   when: s => s.cm > 30 / 400 && s.cm <= 120 / 400, hold: 2.0 },
+    { name: 'Brennan', when: s => s.cm > 120 / 400 && s.cm <= 200 / 400, hold: 2.0 },
+    { name: 'nobody',  when: s => s.cm > 200 / 400, hold: 3.0 },
   ],
 };

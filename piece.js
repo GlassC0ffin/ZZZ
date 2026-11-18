@@ -14,7 +14,12 @@ function resize() {
 addEventListener('resize', resize);
 resize();
 
-const COLORS = { nobody: '#0b0b0d', here: '#1d2a3a', open: '#3a1d2a' };
+const COLORS = {
+  Jaxson: '#c83a31',
+  Diego: '#3a9d63',
+  Brennan: '#4a79c7',
+  nobody: '#0b0b0d',
+};
 
 // A state with no colour above still gets a bright one of its own, picked from
 // its name, so a new row in table.js is visible the moment it fires.
@@ -28,20 +33,20 @@ function colorFor(state) {
 function frame() {
   const { state, signals, since } = window.sense;
   const held = performance.now() - since; // ms in this state
+  const cm = signals.cm === undefined ? 400 : 400 * signals.cm;
 
   ctx.fillStyle = colorFor(state);
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  if (state !== 'nobody') {
-    const r = Math.min(canvas.width, canvas.height) * (0.05 + 0.35 * (signals.open || 0));
-    const fadeIn = Math.min(1, held / 600);
-    ctx.globalAlpha = fadeIn;
-    ctx.fillStyle = '#f2efe9';
-    ctx.beginPath();
-    ctx.arc(canvas.width / 2, canvas.height / 2, r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-  }
+  ctx.save();
+  ctx.fillStyle = '#f8f3e8';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `700 ${Math.min(canvas.width, canvas.height) * 0.16}px system-ui, sans-serif`;
+  ctx.fillText(state.toUpperCase(), canvas.width / 2, canvas.height * 0.43);
+  ctx.font = `500 ${Math.min(canvas.width, canvas.height) * 0.07}px ui-monospace, monospace`;
+  ctx.fillText(`cm ${Number.isFinite(cm) ? cm.toFixed(1) : '400.0'}`, canvas.width / 2, canvas.height * 0.58);
+  ctx.restore();
 
   requestAnimationFrame(frame);
 }

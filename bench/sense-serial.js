@@ -18,15 +18,8 @@ const readout = document.querySelector('#readout');
 // returns a number from 0 to 1. Its name has to match a name in table.js signals.
 
 const SIGNALS = {
-  // near: 1 at the sensor, 0 at two metres or more.
-  near: r => (r.cm === undefined ? 0 : clamp((200 - r.cm) / 190)),
-
-  // present: someone within a metre and a half. Smoothed below, so one bad
-  // echo does not count as somebody leaving.
-  present: r => (r.cm !== undefined && r.cm < 150 ? 1 : 0),
-
-  // Your signal goes here. A photoresistor printed as "light":
-  //   shade: r => (r.light === undefined ? 0 : clamp(1 - r.light / 1023)),
+  // 0 cm is 0.0; 400 cm or no echo is 1.0.
+  cm: r => (r.cm === undefined ? 1 : clamp(r.cm / 400)),
 };
 
 function clamp(x) {

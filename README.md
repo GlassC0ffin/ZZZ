@@ -1,77 +1,67 @@
-# Sensor Layer starter
+# Distance Names
 
-Computer Coding Studio, fall 2026. The camera, the model, one worked signal and a fake sensor, so your pair starts from a piece that already runs.
+## Charter
 
-**Live:** https://flyinthelyceum.github.io/sensor-layer-starter/ (click Start the camera; press D, B, V)
+The Sensor Piece sees distance, names the visitor one of three group names or `nobody`, and answers with a distinct OLED word, light, and tone. The Nano is the whole instrument: it does not depend on a laptop, Serial Monitor, or browser. This is not identity recognition. An ultrasonic reading names a distance zone, not a person.
 
-## Make it yours
+## State Table
 
-1. Click **Use this template**, then **Create a new repository**, under one partner's account. Add the other partner as a collaborator (Settings, Collaborators).
-2. Both partners clone it, open it in VS Code, and run it with a local server. Live Server works, or in the terminal: `python3 -m http.server`, then open `http://localhost:8000`. Opening `index.html` straight from the Finder will not reach the camera.
-3. Turn on GitHub Pages: Settings, Pages, branch `main`, folder `/ (root)`. That address is the live URL you submit.
+| Owner | Name | Rule | Final numbers | Hold | Response |
+|---|---|---|---|---|---|
+| Jaxson William Character | Jaxson | cm <= 30 | 0-30 cm | 1.0 s | Red LED, 660 Hz tone, JAXSON |
+| Diego Ortega | Diego | 30 < cm <= 120 | 31-120 cm | 2.0 s | Green LED, 440 Hz tone, DIEGO |
+| Brennan Soloman Howard-Ruelas | Brennan | 120 < cm <= 200 | 121-200 cm | 2.0 s | Blue LED, 330 Hz tone, BRENNAN |
+| Group | nobody | cm > 200 or no echo | 201-400 cm | 3.0 s | LEDs off, no tone, NOBODY |
 
-## The files
+The browser and Nano use the same boundaries and holds. `GAP_CM` is 10 cm in `bench/bench.ino`; readings stay at the last quiet value instead of jumping at each line. The hold begins only when a candidate rule remains true.
 
-| File | Job | Who edits it |
+## Wiring
+
+- HC-SR04/US-025A VCC -> Nano 5V
+- Sensor GND -> Nano GND
+- Sensor TRIG -> D9
+- Sensor ECHO -> D10
+- OLED VCC -> 5V, GND -> GND, SDA -> A4, SCL -> A5
+- Jaxson red LED -> D3 through a 220 ohm resistor
+- Diego green LED -> D4 through a 220 ohm resistor
+- Brennan blue LED -> D5 through a 220 ohm resistor
+- Buzzer positive -> D6, buzzer negative -> GND
+
+Every LED and the buzzer share Nano GND. Push wires fully into the breadboard and tape the Nano and sensor leads after testing. Power can be a 5V USB wall charger or power bank.
+
+![Finished or reference build](bench/img/build-overview.jpg)
+
+![Build wiring](bench/img/nano-pins.jpg)
+
+![Sensor wiring](design.jpg)
+
+## How to run it
+
+1. Open `bench/bench.ino` in the Arduino IDE, select Arduino Nano / ATmega328P and upload. If an old-clone Nano fails, select Tools -> Processor -> ATmega328P (Old Bootloader).
+2. Disconnect USB and connect a USB wall charger or power bank. The sketch starts immediately; no Serial Monitor is required.
+3. Hold a hand at each boundary for longer than the row's hold. The OLED prints `JAXSON cm 23.6`, `DIEGO cm 80.0`, `BRENNAN cm 160.0`, or `NOBODY cm 400.0`.
+
+For the browser bench: open `bench.html` on localhost in Chrome or Edge, close the Arduino IDE Serial Monitor, click **Connect the Arduino**, and press D. Open `bench.html` in the December viewer context.
+
+## Break log
+
+| Reading or test | Failure | Adjustment |
 |---|---|---|
-| `table.js` | Your State Table, row for row: the signals, the states, the rules, the holds | both of you, first |
-| `sense.js` | Reads the camera, turns readings into signals, applies the table, writes `window.sense` | each partner, your own signal |
-| `piece.js` | Reads `window.sense` every frame and answers | both of you |
-| `fake-sense.js` | Writes the same object with no camera: number keys set the state, the mouse sets the signals | only if your signal names change |
-| `index.html` | Loads them in order | rarely |
+| 29.5 cm / 30 cm edge | 0.5 cm echo noise could cross the line | 10 cm `GAP_CM`; Jaxson hold 1.0 s |
+| 119.5 cm / 120 cm edge | Rapid alternating readings between Diego and Brennan | 2.0 s candidate hold for both rows |
+| 199.5 cm / 200 cm edge | Brennan response could flicker into nobody | 2.0 s Brennan hold and 3.0 s nobody hold |
+| No echo / empty room | Timeout could read a short random gap | 400 cm fallback and 3.0 s nobody hold |
+| Sensor facing clothing or ceiling | Soft surfaces absorb sound and return no echo | nobody fallback is conservative; aim sensor at visitors |
 
-## The object
+## Fairness and legibility
 
-```js
-window.sense = {
-  state: 'here',                          // one word from your State Table
-  signals: { present: 0.98, open: 0.02 }, // each a number from 0 to 1
-  since: 184203.5                         // performance.now() when this state began
-};
-```
-
-`piece.js` reads this and nothing else. It never touches the camera. That is why the piece keeps running on `fake-sense.js` when no camera is there, and why a scene you build in November can run off the sensor you build now.
-
-## Adding your signal
-
-1. Add its name to `signals` in `table.js`.
-2. Add a function with the same name to `SIGNALS` in `sense.js`. It gets one frame's result and returns a number from 0 to 1. There are two patterns in the comments there: one of the 52 named scores from the lab, or geometry from the 478 points.
-3. Use it in a rule in `table.js`. Press **D** to watch the number while you set the threshold. Thresholds that move go in your break log.
-
-## Keys
-
-- **D**: the object `piece.js` reads, live
-- **B**: all 52 named scores, to find the one you measured in the Make a Face lab
-- **V**: the camera, small, in the corner
-- **1, 2, 3 …** and the **mouse**: drive the fake sensor before the camera starts
-
-## When Start does nothing useful
-
-If the readout says the face library did not load, the school network is blocking `cdn.jsdelivr.net`. Press **D** and keep going on the fake sensor: the piece reads the same object either way. A new state you add to `table.js` gets a bright colour of its own in `piece.js` until you give it one.
-
-## Bench pairs: an Arduino instead of the camera
-
-The bench track swaps the sense layer and nothing else. `piece.js` and `fake-sense.js` stay exactly as they are. The wiring, a photo of a working build and upload fixes are in `bench/README.md`.
-
-1. Build the circuit and flash `bench/bench.ino` from the Arduino IDE. It prints one line per reading, like `cm 42.5`. Check it in the IDE's Serial Monitor at 115200, then **close the Serial Monitor**: only one program can hold the port.
-2. Open **`bench.html`** instead of `index.html`, on localhost in **Chrome**. It loads the bench table and the serial sense layer; nothing to edit.
-3. Click **Connect the Arduino** and pick the board. Press **D** to see the raw line and your signals.
-4. Your State Table lives in **`bench/table-bench.js`** (same format as `table.js`). Your signal is a function in `SIGNALS` in `bench/sense-serial.js`: it gets the latest reading (`{ cm: 42.5 }`) and returns 0 to 1. Add the sensor to the sketch's printed line, then its function, then its name in `bench/table-bench.js`.
-
-## What stays in the browser
-
-Nothing saves a frame or a landmark list. The model downloads once when you click Start; after that the Network panel stays quiet. Keep it that way: no `localStorage` of readings, no uploads, no screenshots of the camera image in the repo. Screenshots for your break log show the piece or the D readout.
-
-The instrument is MediaPipe Face Landmarker, pinned to version 1.1.1, the same one the Make a Face lab used.
+**For them:** a stranger can look at the OLED or LED and tell the state called it; the browser canvas prints the word and centimetre reading. **To them:** the piece does not infer identity. A visitor may be called Jaxson, Diego, or Brennan because they occupy that distance, and the name is not a claim about who they are.
 
 ## Credits
 
-Team 
--Jaxson William Character 
--Diego Ortega -My PR 
--Brennan Soloman Howard-Ruelas , my pull request 
-
-
-
-Sensor: ultrasonic distnace 
-Live Website: https://glassc0ffin.github.io/ZZZ/
+- Jaxson William Character: Jaxson row, 0-30 cm, 1.0 s hold, red LED/660 Hz response.
+- Diego Ortega: Diego row, 31-120 cm, 2.0 s hold, green LED/440 Hz response.
+- Brennan Soloman Howard-Ruelas: Brennan row, 121-200 cm, 2.0 s hold, blue LED/330 Hz response.
+- The nobody row and shared wiring are owned by the group.
+- Sensor: HC-SR04/US-025A ultrasonic distance sensor.
+- Live page: https://glassc0ffin.github.io/ZZZ/

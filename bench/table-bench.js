@@ -12,12 +12,13 @@
 // Keep "nobody" last, so it catches everything the other rows miss.
 
 window.TABLE = {
-  // The HC-SR04 example. Replace these with your own signals and rows.
-  signals: ['present', 'near'],
+  // cm is normalized to 0.0 at contact and 1.0 at 400 cm.
+  signals: ['cm'],
 
   states: [
-    { name: 'close',  when: s => s.near > 0.85,   hold: 0.5 },
-    { name: 'here',   when: s => s.present > 0.5, hold: 1 },
-    { name: 'nobody', when: s => s.present < 0.2, hold: 2 },
+    { name: 'Jaxson',  when: s => s.cm <= 30 / 400,  hold: 1.0 },
+    { name: 'Diego',   when: s => s.cm > 30 / 400 && s.cm <= 120 / 400, hold: 2.0 },
+    { name: 'Brennan', when: s => s.cm > 120 / 400 && s.cm <= 200 / 400, hold: 2.0 },
+    { name: 'nobody',  when: s => s.cm > 200 / 400, hold: 3.0 },
   ],
 };
