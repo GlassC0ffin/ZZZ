@@ -1,0 +1,184 @@
+
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+// PINS
+const int TRIG_PIN = 9;
+const int ECHO_PIN = 10;
+const int BUZZER_PIN = 8;
+const int LED_PIN = A1;
+
+// OLED
+const int SCREEN_WIDTH = 128;
+const int SCREEN_HEIGHT = 64;
+const int OLED_ADDRESS = 0x3C;
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+// SETTINGS
+const int MAX_DISTANCE_CM = 200;
+const int WARNING_CM = 20;
+const int MUSIC_DISTANCE_CM = 15;
+
+bool wasClose = false;
+
+// JINGLE BELLS
+int melody[] = {
+  659, 659, 659,
+  659, 659, 659,
+  659, 784, 523, 587, 659,
+  698, 698, 698, 698,
+  698, 659, 659, 659,
+  659, 587, 587, 659, 587, 784
+};
+
+int durations[] = {
+  250, 250, 500,
+  250, 250, 500,
+  250, 250, 250, 250, 750,
+  250, 250, 250, 250,
+  250, 250, 250, 250,
+  250, 250, 250, 250, 250, 750
+};
+
+// DISTANCE SENSOR
+float readDistanceCm() {
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+
+  long duration = pulseIn(ECHO_PIN, HIGH, 30000);
+
+  if (duration == 0) {
+    return -1;
+  }
+
+  return duration * 0.0343 / 2;
+}
+
+// MUSIC AND LIGHTS
+void playJingleBells() {
+  int numberOfNotes = sizeof(melody) / sizeof(melody[0]);
+
+  for (int i = 0; i < numberOfNotes; i++) {
+
+    // Turn lights on with each note
+    digitalWrite(LED_PIN, HIGH);
+
+    tone(BUZZER_PIN, melody[i]);
+    delay(durations[i]);
+
+    // Turn lights off between notes
+    noTone(BUZZER_PIN);
+    digitalWrite(LED_PIN, LOW);
+
+    delay(50);
+  }
+}
+
+// SETUP
+void setup() {
+  Serial.begin(9600);
+
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
+
+  digitalWrite(LED_PIN, LOW);
+
+  if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS)) {
+    Serial.println("OLED not found!");
+    while (true);
+  }
+
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.println("Jingle Bells Detector");
+  display.println("Starting...");
+  display.display();
+
+  delay(1000);
+}
+
+// MAIN LOOP
+void loop() {
+
+  float distance = readDistanceCm();
+
+  display.clearDisplay();
+
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.println("Distance:");
+
+  display.setTextSize(3);
+  display.setCursor(0, 18);
+
+  if (distance < 0 || distance > MAX_DISTANCE_CM) {
+
+    display.setTextSize(2);
+    display.print("No object");
+
+    Serial.println("No object detected");
+
+  } else {
+
+    display.print(distance, 1);
+    display.setTextSize(1);
+    display.print(" cm");
+
+    Serial.print("Distance: ");
+    Serial.print(distance);
+    Serial.println(" cm");
+
+    int barLength = map(
+      (int)distance,
+      0,
+      MAX_DISTANCE_CM,
+      SCREEN_WIDTH,
+      0
+    );
+
+    barLength = constrain(barLength, 0, SCREEN_WIDTH);
+
+    display.fillRect(
+      0,
+      SCREEN_HEIGHT - 8,
+      barLength,
+      6,
+      SSD1306_WHITE
+    );
+
+    if (distance < WARNING_CM) {
+      display.setTextSize(1);
+      display.setCursor(80, 0);
+      display.print("CLOSE!");
+    }
+  }
+
+  display.display();
+
+  // TRIGGER MUSIC AND LIGHTS UNDER 15 CM
+  bool isClose = (distance > 0 &&
+                  distance < MUSIC_DISTANCE_CM);
+
+  if (isClose && !wasClose) {
+    Serial.println("VISITOR DETECTED!");
+    Serial.println("JINGLE BELLS!");
+
+    playJingleBells();
+  }
+
+  wasClose = isClose;
+
+  digitalWrite(LED_PIN, LOW);
+
+  delay(100);
+}
