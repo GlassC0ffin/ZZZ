@@ -26,8 +26,6 @@ function clamp(x) {
   return Math.min(1, Math.max(0, x));
 }
 
-const SMOOTHING = 0.25;
-
 // ---- The State Table, applied (the same as sense.js) -------------------------
 
 const signals = window.sense.signals;
@@ -71,7 +69,7 @@ function onReading(reading) {
   for (const name of window.TABLE.signals) {
     const read = SIGNALS[name];
     if (!read) continue;
-    signals[name] += (clamp(read(reading)) - signals[name]) * SMOOTHING;
+    signals[name] = clamp(read(reading));
   }
 }
 

@@ -12,44 +12,63 @@ const int BUZZER = 6;
 
 const int SCREEN_WIDTH = 128;
 const int SCREEN_HEIGHT = 64;
-const float GAP_CM = 10.0;
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 String state = "nobody";
-String candidate = "nobody";
-unsigned long candidateSince = 0;
 float shownCm = 400.0;
 unsigned long lastPrint = 0;
+const int SAMPLE_COUNT = 3;
+float samples[SAMPLE_COUNT];
+int sampleIndex = 0;
+bool samplesFilled = false;
+
+float medianReading(float reading) {
+  samples[sampleIndex++] = reading;
+  if (sampleIndex >= SAMPLE_COUNT) {
+    sampleIndex = 0;
+    samplesFilled = true;
+  }
+
+  int count = samplesFilled ? SAMPLE_COUNT : sampleIndex;
+  if (count == 0) return reading;
+
+  float sorted[SAMPLE_COUNT];
+  for (int i = 0; i < count; i++) sorted[i] = samples[i];
+  for (int i = 1; i < count; i++) {
+    float value = sorted[i];
+    int j = i - 1;
+    while (j >= 0 && sorted[j] > value) {
+      sorted[j + 1] = sorted[j];
+      j--;
+    }
+    sorted[j + 1] = value;
+  }
+  return sorted[count / 2];
+}
 
 String classify(float cm) {
   if (cm <= 30.0) return "Jaxson";
   if (cm <= 120.0) return "Diego";
-  if (cm <= 200.0) return "Brennan";
+  if (cm <= 200.0) return "Bremer";
   return "nobody";
-}
-
-unsigned long holdFor(const String& name) {
-  if (name == "Jaxson") return 1000;
-  if (name == "Diego") return 2000;
-  if (name == "Brennan") return 2000;
-  return 3000;
 }
 
 void setResponse(const String& name) {
   digitalWrite(JAXSON_LED, name == "Jaxson" ? HIGH : LOW);
   digitalWrite(DIEGO_LED, name == "Diego" ? HIGH : LOW);
-  digitalWrite(BRENNAN_LED, name == "Brennan" ? HIGH : LOW);
+  digitalWrite(BRENNAN_LED, name == "Bremer" ? HIGH : LOW);
 
   drawDisplay(name);
 
+  noTone(BUZZER);
   if (name == "Jaxson") {
-    tone(BUZZER, 660, 100);
+    tone(BUZZER, 880, 180);
   } else if (name == "Diego") {
-    tone(BUZZER, 440, 100);
-  } else if (name == "Brennan") {
-    tone(BUZZER, 330, 100);
+    tone(BUZZER, 660, 180);
+  } else if (name == "Bremer") {
+    tone(BUZZER, 440, 180);
   } else {
-    noTone(BUZZER);
+    tone(BUZZER, 220, 180);
   }
 }
 
@@ -89,21 +108,15 @@ void loop() {
   unsigned long us = pulseIn(ECHO, HIGH, 30000);
   float reading = us ? us / 58.0 : 400.0;
   if (reading < 2.0) reading = 400.0;
-  if (abs(reading - shownCm) > GAP_CM) {
-    shownCm = reading;
-  }
+  shownCm = medianReading(reading);
 
   String next = classify(shownCm);
-  unsigned long now = millis();
-  if (next != candidate) {
-    candidate = next;
-    candidateSince = now;
-  }
-  if (next != state && now - candidateSince >= holdFor(next)) {
+  if (next != state) {
     state = next;
     setResponse(state);
   }
 
+  unsigned long now = millis();
   if (now - lastPrint >= 50) {
     Serial.print("cm ");
     Serial.println(shownCm, 1);
@@ -111,5 +124,4 @@ void loop() {
     lastPrint = now;
   }
 
-  delay(50);
 }

@@ -2,66 +2,58 @@
 
 ## Charter
 
-The Sensor Piece sees distance, names the visitor one of three group names or `nobody`, and answers with a distinct OLED word, light, and tone. The Nano is the whole instrument: it does not depend on a laptop, Serial Monitor, or browser. This is not identity recognition. An ultrasonic reading names a distance zone, not a person.
+Distance Names uses ultrasonic distance to choose a group name, then responds with that name on an OLED, a matching LED, and a distinct buzzer tone. It does not recognize people: it names a distance zone, not anyone's identity.
+
+## Our Sensor
+
+![Our assembled sensor piece: Nano, two ultrasonic modules, OLED, LEDs, and buzzer](bench/img/finished-piece.jpg)
+
+The finished prototype has two ultrasonic modules, an Arduino Nano, an OLED, LEDs, and a buzzer. The current sketch reads the primary module on D9/D10; the second module is physically present but is not used by this version of the code. Each state already works from the first sensor alone.
 
 ## State Table
 
-| Owner | Name | Rule | Final numbers | Hold | Response |
-|---|---|---|---|---|---|
-| Jaxson William Character | Jaxson | cm <= 30 | 0-30 cm | 1.0 s | Red LED, 660 Hz tone, JAXSON |
-| Diego Ortega | Diego | 30 < cm <= 120 | 31-120 cm | 2.0 s | Green LED, 440 Hz tone, DIEGO |
-| Brennan Soloman Howard-Ruelas | Brennan | 120 < cm <= 200 | 121-200 cm | 2.0 s | Blue LED, 330 Hz tone, BRENNAN |
-| Group | nobody | cm > 200 or no echo | 201-400 cm | 3.0 s | LEDs off, no tone, NOBODY |
+| Owner | State | Distance rule | Hold | Response |
+|---|---|---:|---:|---|
+| Jaxson William Character | Jaxson | `cm <= 30` | 0 s | Red LED, 880 Hz tone |
+| Diego Ortega | Diego | `30 < cm <= 120` | 0 s | Green LED, 660 Hz tone |
+| Brennan Soloman Howard-Ruelas (Bremer) | Bremer | `120 < cm <= 200` | 0 s | Blue LED, 440 Hz tone |
+| Group | nobody | `cm > 200` or no echo | 0 s | LEDs off, 220 Hz tone |
 
-The browser and Nano use the same boundaries and holds. `GAP_CM` is 10 cm in `bench/bench.ino`; readings stay at the last quiet value instead of jumping at each line. The hold begins only when a candidate rule remains true.
+The state changes on the first filtered reading in a new range. The sensor takes the median of three quick measurements to reject a single bad echo; there is no timed hold or artificial pause. Each state plays its own short tone when entered.
 
 ## Wiring
 
-- HC-SR04/US-025A VCC -> Nano 5V
-- Sensor GND -> Nano GND
-- Sensor TRIG -> D9
-- Sensor ECHO -> D10
-- OLED VCC -> 5V, GND -> GND, SDA -> A4, SCL -> A5
-- Jaxson red LED -> D3 through a 220 ohm resistor
-- Diego green LED -> D4 through a 220 ohm resistor
-- Brennan blue LED -> D5 through a 220 ohm resistor
-- Buzzer positive -> D6, buzzer negative -> GND
+The code's primary ultrasonic module is wired `TRIG -> D9`, `ECHO -> D10`, `VCC -> 5V`, and `GND -> GND`. The OLED uses I2C (`SDA -> A4`, `SCL -> A5`). The name LEDs use D3, D4, and D5, each with a current-limiting resistor; the buzzer uses D6. Connect all grounds together. Confirm the second module's pin connections against the physical build before enabling it in code.
 
-Every LED and the buzzer share Nano GND. Push wires fully into the breadboard and tape the Nano and sensor leads after testing. Power can be a 5V USB wall charger or power bank.
+![Reference Nano wiring](bench/img/nano-pins.jpg)
 
-![Finished or reference build](bench/img/build-overview.jpg)
+## Run It
 
-![Build wiring](bench/img/nano-pins.jpg)
+1. Open `bench/bench.ino` in Arduino IDE, choose Arduino Nano and **ATmega328P (Old Bootloader)** if your clone needs it, then upload.
+2. Power the Nano with a USB wall charger or power bank; the sketch starts automatically and does not need a laptop or Serial Monitor.
+3. Move a hand through each distance range. The OLED shows the name and centimetres, and each name has its own LED and tone.
 
-![Sensor wiring](design.jpg)
+Serial output is available for testing at 115200 baud as `cm 23.6`. Close the Serial Monitor before connecting `bench.html`.
 
-## How to run it
+## Break Log
 
-1. Open `bench/bench.ino` in the Arduino IDE, select Arduino Nano / ATmega328P and upload. If an old-clone Nano fails, select Tools -> Processor -> ATmega328P (Old Bootloader).
-2. Disconnect USB and connect a USB wall charger or power bank. The sketch starts immediately; no Serial Monitor is required.
-3. Hold a hand at each boundary for longer than the row's hold. The OLED prints `JAXSON cm 23.6`, `DIEGO cm 80.0`, `BRENNAN cm 160.0`, or `NOBODY cm 400.0`.
+| Issue | Change |
+|---|---|
+| Ultrasonic echo occasionally jumps | Use the median of three readings; no extra timed hold |
+| Slow response at state boundaries | Removed per-state delays and the loop's 50 ms delay |
+| Names sounded alike | Use 880, 660, 440, and 220 Hz tones for Jaxson, Diego, Bremer, and nobody |
+| No echo | Treat timeout or readings under 2 cm as 400 cm, which selects nobody |
 
-For the browser bench: open `bench.html` on localhost in Chrome or Edge, close the Arduino IDE Serial Monitor, click **Connect the Arduino**, and press D. Open `bench.html` in the December viewer context.
+## Legibility and Fairness
 
-## Break log
-
-| Reading or test | Failure | Adjustment |
-|---|---|---|
-| 29.5 cm / 30 cm edge | 0.5 cm echo noise could cross the line | 10 cm `GAP_CM`; Jaxson hold 1.0 s |
-| 119.5 cm / 120 cm edge | Rapid alternating readings between Diego and Brennan | 2.0 s candidate hold for both rows |
-| 199.5 cm / 200 cm edge | Brennan response could flicker into nobody | 2.0 s Brennan hold and 3.0 s nobody hold |
-| No echo / empty room | Timeout could read a short random gap | 400 cm fallback and 3.0 s nobody hold |
-| Sensor facing clothing or ceiling | Soft surfaces absorb sound and return no echo | nobody fallback is conservative; aim sensor at visitors |
-
-## Fairness and legibility
-
-**For them:** a stranger can look at the OLED or LED and tell the state called it; the browser canvas prints the word and centimetre reading. **To them:** the piece does not infer identity. A visitor may be called Jaxson, Diego, or Brennan because they occupy that distance, and the name is not a claim about who they are.
+**For them:** the OLED says the state name and distance, and a matching LED and tone make the response visible and audible. **To them:** someone can receive a name because of where they stand, not who they are. The piece may misname a visitor at a range boundary and makes no claim to identify them.
 
 ## Credits
 
-- Jaxson William Character: Jaxson row, 0-30 cm, 1.0 s hold, red LED/660 Hz response.
-- Diego Ortega: Diego row, 31-120 cm, 2.0 s hold, green LED/440 Hz response.
-- Brennan Soloman Howard-Ruelas: Brennan row, 121-200 cm, 2.0 s hold, blue LED/330 Hz response.
-- The nobody row and shared wiring are owned by the group.
-- Sensor: HC-SR04/US-025A ultrasonic distance sensor.
+- Jaxson William Character owns Jaxson.
+- Diego Ortega owns Diego.
+- Brennan Soloman Howard-Ruelas (Bremer) owns Bremer.
+- The group owns the nobody state and shared build.
+- Sensor: two ultrasonic modules are mounted; current code uses one.
+- Repository: https://github.com/GlassC0ffin/ZZZ
 - Live page: https://glassc0ffin.github.io/ZZZ/

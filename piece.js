@@ -17,7 +17,7 @@ resize();
 const COLORS = {
   Jaxson: '#c83a31',
   Diego: '#3a9d63',
-  Brennan: '#4a79c7',
+  Bremer: '#4a79c7',
   nobody: '#0b0b0d',
 };
 

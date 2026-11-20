@@ -6,17 +6,16 @@
 //
 // signals: the numbers your sensing writes, each 0 to 1. Each partner owns one.
 // states:  checked top to bottom; the first row whose rule is true wins.
-//          hold is in seconds: how long a rule has to stay true before the state
-//          changes. Without it the piece flickers between two words.
+//          hold is in seconds. Zero changes state on the first matching reading.
 //          Keep "nobody" last, so it catches everything the other rows miss.
 
 window.TABLE = {
   signals: ['cm'],
 
   states: [
-    { name: 'Jaxson',  when: s => s.cm <= 30 / 400,  hold: 1.0 },
-    { name: 'Diego',   when: s => s.cm > 30 / 400 && s.cm <= 120 / 400, hold: 2.0 },
-    { name: 'Brennan', when: s => s.cm > 120 / 400 && s.cm <= 200 / 400, hold: 2.0 },
-    { name: 'nobody',  when: s => s.cm > 200 / 400, hold: 3.0 },
+    { name: 'Jaxson',  when: s => s.cm <= 30 / 400,  hold: 0 },
+    { name: 'Diego',   when: s => s.cm > 30 / 400 && s.cm <= 120 / 400, hold: 0 },
+    { name: 'Bremer',  when: s => s.cm > 120 / 400 && s.cm <= 200 / 400, hold: 0 },
+    { name: 'nobody', when: s => s.cm > 200 / 400, hold: 0 },
   ],
 };
