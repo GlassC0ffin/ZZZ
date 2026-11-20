@@ -1,0 +1,3 @@
+Repo:    https://github.com/GlassC0ffin/ZZZ
+Release: https://github.com/GlassC0ffin/ZZZ/releases/tag/v1.0
+Mine:    https://github.com/GlassC0ffin/ZZZ/pulls?q=is:pr+is:merged+author:GlassC0ffin
