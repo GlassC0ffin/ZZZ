@@ -5,9 +5,10 @@
 
 const int TRIG = 9;
 const int ECHO = 10;
-const int JAXSON_LED = 3;
-const int DIEGO_LED = 4;
-const int BOI_LED = 5;
+const int LED_STRIP = A1;
+const int JAXSON_BUZZER = 6;
+const int DIEGO_BUZZER = 7;
+const int BOI_BUZZER = 13;
 
 const int SCREEN_WIDTH = 128;
 const int SCREEN_HEIGHT = 64;
@@ -53,10 +54,18 @@ String classify(float cm) {
 }
 
 void setResponse(const String& name) {
-  digitalWrite(JAXSON_LED, name == "Jaxson" ? HIGH : LOW);
-  digitalWrite(DIEGO_LED, name == "Diego" ? HIGH : LOW);
-  digitalWrite(BOI_LED, name == "#BOI" ? HIGH : LOW);
+  digitalWrite(LED_STRIP, name == "nobody" ? LOW : HIGH);
+  noTone(JAXSON_BUZZER);
+  noTone(DIEGO_BUZZER);
+  noTone(BOI_BUZZER);
 
+  if (name == "Jaxson") {
+    tone(JAXSON_BUZZER, 880, 180);
+  } else if (name == "Diego") {
+    tone(DIEGO_BUZZER, 660, 180);
+  } else if (name == "#BOI") {
+    tone(BOI_BUZZER, 440, 180);
+  }
   drawDisplay(name);
 }
 
@@ -77,9 +86,10 @@ void setup() {
   Serial.begin(115200);
   pinMode(TRIG, OUTPUT);
   pinMode(ECHO, INPUT);
-  pinMode(JAXSON_LED, OUTPUT);
-  pinMode(DIEGO_LED, OUTPUT);
-  pinMode(BOI_LED, OUTPUT);
+  pinMode(LED_STRIP, OUTPUT);
+  pinMode(JAXSON_BUZZER, OUTPUT);
+  pinMode(DIEGO_BUZZER, OUTPUT);
+  pinMode(BOI_BUZZER, OUTPUT);
 
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   setResponse("nobody");

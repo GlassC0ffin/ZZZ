@@ -14,16 +14,16 @@ The finished prototype has two ultrasonic modules, an Arduino Nano, an OLED, and
 
 | Owner | State | Distance rule | Hold | Response |
 |---|---|---:|---:|---|
-| Jaxson William Character | Jaxson | `cm <= 30` | 0 s | Red LED |
-| Diego Ortega | Diego | `30 < cm <= 120` | 0 s | Green LED |
-| Brennan Soloman Howard-Ruelas (#BOI) | #BOI | `120 < cm <= 200` | 0 s | Blue LED |
-| Group | nobody | `cm > 200` or no echo | 0 s | All LEDs off |
+| Jaxson William Character | Jaxson | `cm <= 30` | 0 s | Piezo on D6 at 880 Hz; strip on |
+| Diego Ortega | Diego | `30 < cm <= 120` | 0 s | Piezo on D7 at 660 Hz; strip on |
+| Brennan Soloman Howard-Ruelas (#BOI) | #BOI | `120 < cm <= 200` | 0 s | Piezo on D13 at 440 Hz; strip on |
+| Group | nobody | `cm > 200` or no echo | 0 s | Buzzers off; strip off |
 
-The state changes on the first filtered reading in a new range. The sensor takes the median of three quick measurements to reject a single bad echo; there is no timed hold or artificial pause. Each name has its own light: Jaxson has red, Diego green, and #BOI blue.
+The state changes on the first filtered reading in a new range. The sensor takes the median of three quick measurements to reject a single bad echo; there is no timed hold or artificial pause. Each person's state drives a different piezo and pitch. The LED strip on A1 lights for any named state and turns off for nobody.
 
 ## Wiring
 
-The code's primary ultrasonic module is wired `TRIG -> D9`, `ECHO -> D10`, `VCC -> 5V`, and `GND -> GND`. The OLED uses I2C (`SDA -> A4`, `SCL -> A5`). Jaxson's red LED uses D3, Diego's green LED uses D4, and #BOI's blue LED uses D5; each LED uses a current-limiting resistor. Connect all grounds together. Confirm the second module's pin connections against the physical build before enabling it in code.
+The code's primary ultrasonic module is wired `TRIG -> D9`, `ECHO -> D10`, `VCC -> 5V`, and `GND -> GND`. The OLED uses I2C (`SDA -> A4`, `SCL -> A5`). The piezo signal pins are D6 (Jaxson), D7 (Diego), and D13 (#BOI); connect each piezo's other lead to GND. A1 controls the LED strip. Do not power a strip directly from a Nano pin: use a suitable transistor/MOSFET driver and external supply, with a shared ground. Confirm the second ultrasonic module's pin connections against the physical build before enabling it in code.
 
 ![Reference Nano wiring](bench/img/nano-pins.jpg)
 
@@ -31,7 +31,7 @@ The code's primary ultrasonic module is wired `TRIG -> D9`, `ECHO -> D10`, `VCC 
 
 1. Open `bench/bench.ino` in Arduino IDE, choose Arduino Nano and **ATmega328P (Old Bootloader)** if your clone needs it, then upload.
 2. Power the Nano with a USB wall charger or power bank; the sketch starts automatically and does not need a laptop or Serial Monitor.
-3. Move a hand through each distance range. The OLED shows the name and centimetres, and each name has its own LED.
+3. Move a hand through each distance range. The OLED shows the name and centimetres; its assigned piezo sounds and the LED strip turns on for named states.
 
 Serial output is available for testing at 115200 baud as `cm 23.6`. Close the Serial Monitor before connecting `bench.html`.
 
@@ -41,12 +41,12 @@ Serial output is available for testing at 115200 baud as `cm 23.6`. Close the Se
 |---|---|
 | Ultrasonic echo occasionally jumps | Use the median of three readings; no extra timed hold |
 | Slow response at state boundaries | Removed per-state delays and the loop's 50 ms delay |
-| Name responses looked alike | Use red for Jaxson, green for Diego, and blue for #BOI; all off for nobody |
+| Name responses sounded alike | Give Jaxson, Diego, and #BOI separate piezo pins and pitches |
 | No echo | Treat timeout or readings under 2 cm as 400 cm, which selects nobody |
 
 ## Legibility and Fairness
 
-**For them:** the OLED says the state name and distance, and a matching LED makes the response visible. **To them:** someone can receive a name because of where they stand, not who they are. The piece may misname a visitor at a range boundary and makes no claim to identify them.
+**For them:** the OLED says the state name and distance; the name has its own piezo and pitch. **To them:** someone can receive a name because of where they stand, not who they are. The piece may misname a visitor at a range boundary and makes no claim to identify them.
 
 ## Credits
 
