@@ -15,7 +15,7 @@ window.TABLE = {
   states: [
     { name: 'Jaxson',  when: s => s.cm <= 30 / 400,  hold: 0 },
     { name: 'Diego',   when: s => s.cm > 30 / 400 && s.cm <= 120 / 400, hold: 0 },
-    { name: 'Bremer',  when: s => s.cm > 120 / 400 && s.cm <= 200 / 400, hold: 0 },
+    { name: '#BOI',    when: s => s.cm > 120 / 400 && s.cm <= 200 / 400, hold: 0 },
     { name: 'nobody', when: s => s.cm > 200 / 400, hold: 0 },
   ],
 };

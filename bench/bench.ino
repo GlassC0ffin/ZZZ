@@ -7,8 +7,7 @@ const int TRIG = 9;
 const int ECHO = 10;
 const int JAXSON_LED = 3;
 const int DIEGO_LED = 4;
-const int BRENNAN_LED = 5;
-const int BUZZER = 6;
+const int BOI_LED = 5;
 
 const int SCREEN_WIDTH = 128;
 const int SCREEN_HEIGHT = 64;
@@ -49,27 +48,16 @@ float medianReading(float reading) {
 String classify(float cm) {
   if (cm <= 30.0) return "Jaxson";
   if (cm <= 120.0) return "Diego";
-  if (cm <= 200.0) return "Bremer";
+  if (cm <= 200.0) return "#BOI";
   return "nobody";
 }
 
 void setResponse(const String& name) {
   digitalWrite(JAXSON_LED, name == "Jaxson" ? HIGH : LOW);
   digitalWrite(DIEGO_LED, name == "Diego" ? HIGH : LOW);
-  digitalWrite(BRENNAN_LED, name == "Bremer" ? HIGH : LOW);
+  digitalWrite(BOI_LED, name == "#BOI" ? HIGH : LOW);
 
   drawDisplay(name);
-
-  noTone(BUZZER);
-  if (name == "Jaxson") {
-    tone(BUZZER, 880, 180);
-  } else if (name == "Diego") {
-    tone(BUZZER, 660, 180);
-  } else if (name == "Bremer") {
-    tone(BUZZER, 440, 180);
-  } else {
-    tone(BUZZER, 220, 180);
-  }
 }
 
 void drawDisplay(const String& name) {
@@ -91,8 +79,7 @@ void setup() {
   pinMode(ECHO, INPUT);
   pinMode(JAXSON_LED, OUTPUT);
   pinMode(DIEGO_LED, OUTPUT);
-  pinMode(BRENNAN_LED, OUTPUT);
-  pinMode(BUZZER, OUTPUT);
+  pinMode(BOI_LED, OUTPUT);
 
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   setResponse("nobody");
@@ -123,5 +110,4 @@ void loop() {
     drawDisplay(state);
     lastPrint = now;
   }
-
 }
