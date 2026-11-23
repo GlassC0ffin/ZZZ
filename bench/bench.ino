@@ -5,7 +5,9 @@
 
 const int TRIG = 9;
 const int ECHO = 10;
-const int LED_STRIP = A1;
+const int RED_LED = 3;
+const int GREEN_LED = 5;
+const int BLUE_LED = 11;
 const int JAXSON_BUZZER = 6;
 const int DIEGO_BUZZER = 7;
 const int BOI_BUZZER = 13;
@@ -21,6 +23,33 @@ const int SAMPLE_COUNT = 3;
 float samples[SAMPLE_COUNT];
 int sampleIndex = 0;
 bool samplesFilled = false;
+
+struct Note {
+  uint16_t frequency;
+  uint16_t duration;
+};
+
+const Note JAXSON_TUNE[] = {
+  {659, 220}, {659, 220}, {659, 440}, {659, 220}, {659, 220}, {659, 440},
+  {659, 220}, {784, 220}, {523, 220}, {587, 220}, {659, 600}
+};
+
+const Note DIEGO_TUNE[] = {
+  {392, 260}, {523, 260}, {523, 260}, {587, 260}, {523, 260}, {494, 260}, {440, 520},
+  {440, 260}, {587, 260}, {587, 260}, {659, 260}, {587, 260}, {523, 260}, {494, 520}
+};
+
+const Note BOI_TUNE[] = {
+  {440, 180}, {392, 180}, {370, 180}, {330, 180}, {294, 180}, {330, 180},
+  {370, 180}, {294, 180}, {330, 180}, {370, 180}, {392, 180}, {440, 180},
+  {440, 180}, {392, 180}, {370, 180}, {330, 180}, {294, 520}
+};
+
+const Note* activeTune = nullptr;
+uint8_t activeTuneLength = 0;
+uint8_t nextNoteIndex = 0;
+int activeBuzzer = -1;
+unsigned long nextNoteAt = 0;
 
 float medianReading(float reading) {
   samples[sampleIndex++] = reading;
@@ -48,24 +77,65 @@ float medianReading(float reading) {
 
 String classify(float cm) {
   if (cm <= 30.0) return "Jaxson";
-  if (cm <= 120.0) return "Diego";
-  if (cm <= 200.0) return "#BOI";
+  if (cm <= 60.0) return "#BOI";
+  if (cm <= 200.0) return "Diego";
   return "nobody";
 }
 
-void setResponse(const String& name) {
-  digitalWrite(LED_STRIP, name == "nobody" ? LOW : HIGH);
+void stopTunes() {
   noTone(JAXSON_BUZZER);
   noTone(DIEGO_BUZZER);
   noTone(BOI_BUZZER);
+  activeTune = nullptr;
+  activeTuneLength = 0;
+  activeBuzzer = -1;
+}
+
+void updateTune(unsigned long now) {
+  if (activeTune == nullptr || now < nextNoteAt) return;
+
+  if (nextNoteIndex >= activeTuneLength) {
+    noTone(activeBuzzer);
+    activeTune = nullptr;
+    activeBuzzer = -1;
+    return;
+  }
+
+  const Note note = activeTune[nextNoteIndex++];
+  if (note.frequency == 0) {
+    noTone(activeBuzzer);
+  } else {
+    tone(activeBuzzer, note.frequency, note.duration);
+  }
+  nextNoteAt = now + note.duration + 35;
+}
+
+void startTune(const String& name, unsigned long now) {
+  stopTunes();
+  nextNoteIndex = 0;
+  nextNoteAt = now;
 
   if (name == "Jaxson") {
-    tone(JAXSON_BUZZER, 880, 180);
+    activeTune = JAXSON_TUNE;
+    activeTuneLength = sizeof(JAXSON_TUNE) / sizeof(JAXSON_TUNE[0]);
+    activeBuzzer = JAXSON_BUZZER;
   } else if (name == "Diego") {
-    tone(DIEGO_BUZZER, 660, 180);
+    activeTune = DIEGO_TUNE;
+    activeTuneLength = sizeof(DIEGO_TUNE) / sizeof(DIEGO_TUNE[0]);
+    activeBuzzer = DIEGO_BUZZER;
   } else if (name == "#BOI") {
-    tone(BOI_BUZZER, 440, 180);
+    activeTune = BOI_TUNE;
+    activeTuneLength = sizeof(BOI_TUNE) / sizeof(BOI_TUNE[0]);
+    activeBuzzer = BOI_BUZZER;
   }
+  updateTune(now);
+}
+
+void setResponse(const String& name) {
+  digitalWrite(RED_LED, name == "Jaxson" ? HIGH : LOW);
+  digitalWrite(GREEN_LED, name == "Diego" ? HIGH : LOW);
+  digitalWrite(BLUE_LED, name == "#BOI" ? HIGH : LOW);
+  startTune(name, millis());
   drawDisplay(name);
 }
 
@@ -86,7 +156,9 @@ void setup() {
   Serial.begin(115200);
   pinMode(TRIG, OUTPUT);
   pinMode(ECHO, INPUT);
-  pinMode(LED_STRIP, OUTPUT);
+  pinMode(RED_LED, OUTPUT);
+  pinMode(GREEN_LED, OUTPUT);
+  pinMode(BLUE_LED, OUTPUT);
   pinMode(JAXSON_BUZZER, OUTPUT);
   pinMode(DIEGO_BUZZER, OUTPUT);
   pinMode(BOI_BUZZER, OUTPUT);
@@ -112,6 +184,7 @@ void loop() {
     state = next;
     setResponse(state);
   }
+  updateTune(millis());
 
   unsigned long now = millis();
   if (now - lastPrint >= 50) {
